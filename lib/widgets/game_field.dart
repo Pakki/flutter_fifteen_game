@@ -8,47 +8,56 @@ class GameField extends StatefulWidget {
 }
 
 class _GameFieldState extends State<GameField> {
-  List<int> _fieldNumbers = [for (int i = 1; i < 16; i++) i];
+  List<int> _fieldNumbers = [];
   Chip? blankPlace;
-  List<Widget>? _chips;
+  List<Chip>? _chips;
+  var _roundFinished = false;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    blankPlace = Chip(
-      capNumber: 0,
-      capIndex: 15,
-      moveCell: _moveCell,
-    );
-    _fieldNumbers.shuffle();
-    _chips = [
-      for (int i = 0; i < _fieldNumbers.length; i++)
-        Chip(capNumber: _fieldNumbers[i], capIndex: i, moveCell: _moveCell)
-    ];
-    _chips!.add(blankPlace!);
+    _newGame();
   }
 
   bool _checkOrder() {
     for (int i = 0; i < _chips!.length; i++) {
-      if ((_chips![i] as Chip).capNumber != i + 1) {
+      if (_chips![i].capNumber != i + 1) {
         return false;
       }
     }
+    print('sorted');
     return true;
   }
 
+  void _newGame() {
+    blankPlace = Chip(
+      capNumber: 16,
+      capIndex: 15,
+      moveCell: _moveCell,
+    );
+    _fieldNumbers = [for (int i = 1; i < 16; i++) i];
+    _fieldNumbers.shuffle();
+
+    setState(() {
+      _chips = [
+        for (int i = 0; i < _fieldNumbers.length; i++)
+          Chip(capNumber: _fieldNumbers[i], capIndex: i, moveCell: _moveCell)
+      ];
+      _chips!.add(blankPlace!);
+      _roundFinished = false;
+    });
+  }
+
   void _moveCell(int from, int number) {
-    print(from);
-    print(blankPlace!.capIndex);
-    print('${(from - blankPlace!.capIndex).abs()}');
+    var condition = ((from - blankPlace!.capIndex).abs() != 1 &&
+        (from - blankPlace!.capIndex).abs() != 4);
+    //print('from $from to ${blankPlace!.capIndex} condition is - ${condition}');
     if ((from - blankPlace!.capIndex).abs() != 1 &&
         (from - blankPlace!.capIndex).abs() != 4) {
-      print('can\'t move');
       return;
     }
     if (_chips == null) {
-      print('caps is null');
       return;
     }
 
@@ -57,25 +66,68 @@ class _GameFieldState extends State<GameField> {
           capNumber: number,
           capIndex: blankPlace!.capIndex,
           moveCell: _moveCell);
-      print('current values $from ${blankPlace!.capIndex}');
+
       blankPlace!.capIndex = from;
       _chips![from] = blankPlace!;
+    });
+    if (!_checkOrder()) {
+      return;
+    }
+
+    setState(() {
+      _roundFinished = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     Widget gameField = Column(children: [
-      Row(children: _chips!.sublist(0, 4)),
-      Row(children: _chips!.sublist(4, 8)),
-      Row(children: _chips!.sublist(8, 12)),
-      Row(children: _chips!.sublist(12, 16)),
+      Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _chips!.sublist(0, 4)),
+      Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _chips!.sublist(4, 8)),
+      Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _chips!.sublist(8, 12)),
+      Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _chips!.sublist(12, 16)),
     ]);
-    return Column(
-      children: [
-        gameField,
-      ],
-    );
+    return _roundFinished
+        ? Center(
+            child: Column(
+              children: [
+                Text('You won!'),
+                ElevatedButton(onPressed: _newGame, child: Text('New game')),
+              ],
+            ),
+          )
+        : Center(
+            child: Container(
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  /*ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _chips!.sort(
+                              ((a, b) => a.capNumber.compareTo(b.capNumber)));
+                          for (int i = 0; i < _chips!.length; i++) {
+                            _chips![i].capIndex = i;
+                          }
+                        });
+                        _checkOrder();
+                      },
+                      child: Text('sort')),*/
+
+                  gameField,
+                ],
+              ),
+            ),
+          );
   }
 }
 
@@ -92,10 +144,12 @@ class Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pixRatio = MediaQuery.of(context).devicePixelRatio;
-    final capSize =
-        (MediaQuery.of(context).size.width - 80) * pixRatio / 4 as double;
-    return capNumber == 0
+    final minSize = MediaQuery.of(context).orientation == Orientation.portrait
+        ? MediaQuery.of(context).size.width
+        : MediaQuery.of(context).size.height - AppBar().preferredSize.height;
+    final capSize = (minSize - 40) / 4 as double;
+
+    return capNumber == 16
         ? Container(
             height: capSize,
             width: capSize,
